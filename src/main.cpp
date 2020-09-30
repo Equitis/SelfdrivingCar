@@ -4,6 +4,7 @@
 
 #define MaxDistance 10
 #define FullSpeed 75
+#define DefaultDelay 100
 
 #define MotorAIn1 32
 #define MotorAIn2 34
@@ -28,6 +29,7 @@ bool obstacleFront = false;
 bool obstacleRight = false;
 bool lastValueInvalid = false;
 double oldDistance = 0;
+int counter = 0;
 
 L298N MotorA(MotorAEnable, MotorAIn1, MotorAIn2);
 L298N MotorB(MotorBEnable, MotorBIn1, MotorBIn2);
@@ -43,9 +45,11 @@ void setup()
   Serial.begin(9600);
 }
 
-double GetDistance(UltraSonicDistanceSensor *sensor)
+bool GetDistance(UltraSonicDistanceSensor *sensor)
 {
+  //Hole Werte vom Sensor
   double distance = sensor->measureDistanceCm();
+  //Prüfe auf ungültige Werte
   if(distance < 0)
   {
     lastValueInvalid = true;
@@ -55,6 +59,7 @@ double GetDistance(UltraSonicDistanceSensor *sensor)
   {
     if(lastValueInvalid)
     {
+      //Wenn der letzte Wert ungültig war setze den letzten gültigen Wert
       distance = oldDistance;
     }
     else
@@ -63,46 +68,99 @@ double GetDistance(UltraSonicDistanceSensor *sensor)
     }
     lastValueInvalid = false;
   }
+  // gebe den letzten gültigen Wert zurück
+  return distance <= MaxDistance;
 }
 
-void SetDirection(double distance)
+void Stop()
 {
-  if(distance > 0 && distance < 10)
-  {
-    
-  }
+  MotorA.setSpeed(0);
+  MotorA.stop();
+  MotorB.setSpeed(0);
+  MotorB.stop();
+  MotorC.setSpeed(0);
+  MotorC.stop();
+  MotorD.setSpeed(0);
+  MotorD.stop();
+}
+
+void SetFullSpeed()
+{
+  MotorA.setSpeed(FullSpeed);
+  MotorB.setSpeed(FullSpeed);
+  MotorC.setSpeed(FullSpeed);
+  MotorD.setSpeed(FullSpeed);
+}
+
+void TurnLeft()
+{
+  Stop();
+  MotorA.backward();
+  MotorB.backward();
+  MotorC.forward();
+  MotorD.forward();
+  SetFullSpeed();
+  delay(DefaultDelay);
+}
+
+void TurnRight()
+{
+  Stop();
+  MotorA.forward();
+  MotorB.forward();
+  MotorC.backward();
+  MotorD.backward();
+  SetFullSpeed();
+  delay(DefaultDelay);
+}
+
+void Forward()
+{
+  MotorA.forward();
+  MotorB.forward();
+  MotorC.forward();
+  MotorD.forward();
+}
+
+void Backward()
+{
+  MotorA.backward();
+  MotorB.backward();
+  MotorC.backward();
+  MotorD.backward();
 }
 
 void loop() {
-  SetDirection(GetDistance(&DistA));
-}
+  bool obstacle = true;
+  do
+  {
+    obstacle = GetDistance(&DistA);
+    if(obstacle)
+    {
+        Stop();
+        if(counter < 10)
+        {
+          TurnLeft();
+        }
+        else if (counter >= 10 && counter < 30)
+        {
+          TurnRight();
+        }
+        else if (counter >= 30 && counter < 40)
+        {
+          TurnLeft();
+        }
+        else
+        {
+          Backward();
+          delay(500);
+          counter = 0;
+        }
+    }
+    ++counter;
+    delay(100);
+  } while (!obstacle);
 
-void SetFullSpeed(L298N *motor)
-{
-  motor->setSpeed(FullSpeed);
-}
-
-void TurnLeft(L298N motor)
-{
-
-}
-
-void TurnRight(L298N motor)
-{
-
-}
-
-void Forward(L298N *motor)
-{
-
-}
-
-void Backward(L298N *motor)
-{
-
-}
-
-void Stop(L298N *motor)
-{
+  Forward();
 
 }
